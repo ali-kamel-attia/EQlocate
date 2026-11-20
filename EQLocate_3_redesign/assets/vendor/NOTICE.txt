@@ -1,0 +1,5 @@
+Third-party components bundled for offline use
+- Leaflet 1.9.4 (BSD-2-Clause), assets/vendor/leaflet/ - see LICENSE.txt
+- Natural Earth 1:50m land and boundaries (public domain), via world-atlas 2.0.2 (ISC), assets/data/world50m.js
+- Archivo, IBM Plex Mono, Noto Sans / Noto Sans Mono (Greek subsets) - SIL Open Font License 1.1, assets/fonts/
+Optional online basemaps (only fetched when selected): Esri World Imagery, OpenTopoMap (CC-BY-SA).

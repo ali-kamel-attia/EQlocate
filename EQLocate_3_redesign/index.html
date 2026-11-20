@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>EQLocate · Hypocentre Workbench</title>
+<meta name="description" content="EQLocate: SAC picking, Wadati regression, three-circle / three-sphere and joint least-squares hypocentre location with Monte Carlo and Bayesian uncertainty. Runs entirely in the browser, offline."/>
+<meta name="author" content="Ali Attia"/>
+<meta name="color-scheme" content="light dark"/>
+<meta name="theme-color" content="#15151C"/>
+<link rel="icon" href="assets/img/mark.svg" type="image/svg+xml"/>
+<link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css"/>
+<link rel="stylesheet" href="assets/css/eqlocate.css"/>
+<script>/* theme before first paint: stored choice, else the system setting */
+try{ const t = localStorage.getItem("eqlocate-theme"); if(t === "light" || t === "dark") document.documentElement.dataset.theme = t; }catch(e){}</script>
+</head>
+
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <path id="st8" d="M12.00 1.00L15.22 4.22L19.78 4.22L19.78 8.78L23.00 12.00L19.78 15.22L19.78 19.78L15.22 19.78L12.00 23.00L8.78 19.78L4.22 19.78L4.22 15.22L1.00 12.00L4.22 8.78L4.22 4.22L8.78 4.22Z"/>
+  <pattern id="pat8" width="56" height="56" patternUnits="userSpaceOnUse"><path d="M12.00 1.00L15.22 4.22L19.78 4.22L19.78 8.78L23.00 12.00L19.78 15.22L19.78 19.78L15.22 19.78L12.00 23.00L8.78 19.78L4.22 19.78L4.22 15.22L1.00 12.00L4.22 8.78L4.22 4.22L8.78 4.22Z" transform="translate(16 16) scale(1)" fill="none" stroke="currentColor" stroke-width=".7"/></pattern>
+</defs></svg>
+
+<div class="shell" id="top">
+<aside class="side" aria-label="Application">
+  <div class="brand">
+    <svg class="mark" viewBox="0 0 48 48" aria-hidden="true"><g transform="scale(2)"><use href="#st8" fill="#E4B44C"/></g><circle cx="24" cy="24" r="12.5" fill="#15151C"/><path d="M11.5 24h4l1.6-3.6 2.4 8.4 2.6-13 2.8 15 2.2-9.6 1.6 4.2 1.4-1.4h6.4" fill="none" stroke="#E4B44C" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></svg>
+    <span class="brand-t"><span class="wm">EQ<i>Locate</i></span><span class="tag-l">v<span id="verOut">3</span> · by Ali Attia</span></span>
+  </div>
+  <nav class="navlist" aria-label="Workspaces">
+    <button class="nav" data-ws="home" type="button" title="Home (H)"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 7.5 8 3l5.5 4.5V13H10V9.5H6V13H2.5z"/></svg><span class="nl">Home</span></button>
+    <div class="ngrp">Data</div>
+    <button class="nav" data-ws="data" type="button" title="Data & pick audit (1)"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h7"/><path d="M12 10v4m-2-2 2 2 2-2"/></svg><span class="nl">Data & audit</span><span class="nb" id="auditBadge"></span><span class="nk">1</span><i class="st"></i></button>
+    <button class="nav" data-ws="pick" type="button" title="Phase picking (2)"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 9h2l1.5-4 2 8 2-10 1.5 7 1-3h3"/></svg><span class="nl">Picking</span><span class="nk">2</span><i class="st"></i></button>
+    <div class="ngrp">Analysis</div>
+    <button class="nav" data-ws="wadati" type="button" title="Wadati regression (4)"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 13.5h11M2.5 13.5v-11"/><path d="M3.5 12 12.5 4"/><circle cx="6" cy="9.5" r=".9"/><circle cx="9" cy="7" r=".9"/><circle cx="11" cy="5.6" r=".9"/></svg><span class="nl">Wadati</span><span class="nk">4</span><i class="st"></i></button>
+    <button class="nav" data-ws="velocity" type="button" title="Velocity model & uncertainty (5)"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 11a5.5 5.5 0 0 1 11 0"/><path d="M8 11l3-3.5"/><path d="M2.5 13.5h11"/></svg><span class="nl">Velocity model</span><span class="nk">5</span><i class="st"></i></button>
+    <button class="nav" data-ws="circles" type="button" title="Three circles & spheres (6)"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6" cy="6.5" r="4"/><circle cx="10.5" cy="7" r="3.5"/><circle cx="7.8" cy="10.5" r="3.5"/></svg><span class="nl">Three circles</span><span class="nk">6</span><i class="st"></i></button>
+    <button class="nav" data-ws="joint" type="button" title="Joint least-squares inversion (7)"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><path d="M8 1v3M8 12v3M1 8h3M12 8h3"/><circle cx="8" cy="8" r="1.4"/></svg><span class="nl">Joint LS</span><span class="nk">7</span><i class="st"></i></button>
+    <div class="ngrp">Output</div>
+    <button class="nav" data-ws="case" type="button" title="Case study & figures (9)"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11"/><path d="M2 10.5l3-3 2.5 2.5L10.5 6 14 9.5"/></svg><span class="nl">Case study</span><span class="nb" id="figBadge"></span><span class="nk">9</span><i class="st"></i></button>
+  </nav>
+  <div class="side-foot">
+    <button class="side-btn" id="btnCollapse" type="button" title="Collapse the sidebar" aria-label="Collapse the sidebar"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button>
+    <button class="side-btn" id="btnKeys" type="button" aria-haspopup="dialog" title="Keys &amp; methods (?)"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="4" width="13" height="8.5" rx="1.5" fill="none" stroke="currentColor"/><path d="M4 7h1M7 7h1M10 7h2M4 9.5h8" stroke="currentColor"/></svg><span class="lbl-t">Keys</span></button>
+    <button class="side-btn" id="btnTheme" type="button" aria-label="Switch colour theme" title="Colour theme"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor"/><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor"/></svg><span class="lbl-t" id="themeLbl">Auto</span></button>
+  </div>
+</aside>
+
+<header class="topbar">
+  <div class="tb-title"><span class="tb-n" id="tbN"></span><div><h2 id="tbTitle">EQLocate</h2><p id="tbSub">Earthquake hypocentre location workbench</p></div></div>
+  <dl class="plate" id="plate">
+    <div><dt><i style="--c:var(--ink-3)"></i>Network</dt><dd id="plNet"><span class="dim">—</span></dd></div>
+    <div><dt><i style="--c:var(--chord)"></i>Vp/Vs</dt><dd id="plK"><span class="dim">—</span></dd></div>
+    <div><dt><i style="--c:var(--joint)"></i>Epicentre</dt><dd id="plEpi"><span class="dim">—</span></dd></div>
+    <div><dt><i style="--c:var(--joint)"></i>Depth</dt><dd id="plDep"><span class="dim">—</span></dd></div>
+    <div><dt><i style="--c:var(--joint)"></i>Origin (UTC)</dt><dd id="plTo"><span class="dim">—</span></dd></div>
+    <div><dt><i style="--c:var(--ref)"></i>vs reference</dt><dd id="plRef"><span class="dim">—</span></dd></div>
+    </dl>
+</header>
+
+<main class="work" id="work">
+
+  <section class="ws ws-home" id="ws-home" data-title="EQLocate" data-sub="Earthquake hypocentre location workbench" hidden>
+    <div class="home">
+      <div class="home-intro">
+        <div class="hi-top">
+          <svg class="hi-mark" viewBox="0 0 48 48" aria-hidden="true"><g transform="scale(2)"><use href="#st8" fill="#E4B44C"/></g><circle cx="24" cy="24" r="12.5" fill="#15151C"/><path d="M11.5 24h4l1.6-3.6 2.4 8.4 2.6-13 2.8 15 2.2-9.6 1.6 4.2 1.4-1.4h6.4" fill="none" stroke="#E4B44C" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></svg>
+          <div><h1>EQLocate <span class="ver">v<span id="verHome">3</span></span></h1><p class="author">Author: <b>Ali Attia</b></p><p class="lead">Locate local earthquakes from SAC waveforms: pick the phases, fit the Wadati line, and solve the hypocentre with geometric, least-squares and Bayesian methods. Everything runs in your browser.</p></div>
+        </div>
+        <div class="row">
+          <button class="btn go" type="button" id="btnHomeLoad">Load SAC files</button>
+          <button class="btn" type="button" data-go="pick">Go to picking</button>
+          <button class="btn gray" type="button" id="btnHomeKeys">Keys &amp; methods</button>
+        </div>
+        <div class="hcard">
+          <div class="hcard-h">Session</div>
+          <dl class="kv" id="homeSession">
+            <div><dt>Records</dt><dd id="hsFiles">none loaded</dd></div>
+            <div><dt>Stations</dt><dd id="hsSta">—</dd></div>
+            <div><dt>Picks</dt><dd id="hsPicks">—</dd></div>
+            <div><dt>Best solution</dt><dd id="hsSol">—</dd></div>
+          </dl>
+        </div>
+        <div class="hcard">
+          <div class="hcard-h">Typical workflow</div>
+          <ol class="flow">
+            <li><b>Data</b> — drop the SAC files (or a folder); add a station table if STLA/STLO are missing.</li>
+            <li><b>Picking</b> — check or set P and S on each station; untick stations you do not trust.</li>
+            <li><b>Wadati → Joint LS</b> — fit Vp/Vs, then solve the hypocentre; compare with three circles.</li>
+            <li><b>Case study</b> — run everything at once and download figures, tables and the session.</li>
+          </ol>
+        </div>
+        <div class="hcard hcard-2">
+          <div><div class="hcard-h">Private &amp; offline</div><p>Files are read locally and never uploaded. Leaflet, fonts and an offline world map are bundled; online satellite imagery (Google, Esri) is optional.</p></div>
+          <div><div class="hcard-h">Outputs</div><p>Session and picks (JSON, CSV), pick reports, SAC copies with event headers, 16 figures as SVG and 300-dpi PNG, solution tables (CSV, Markdown) and a ZIP.</p></div>
+        </div>
+        <p class="small">Sample data: <span class="mono">samples/synthetic_event</span> — a synthetic 7-station event (true hypocentre 36.105°N 129.312°E, 8 km). Homogeneous half-space model.</p>
+      </div>
+      <div class="home-feat">
+        <div class="hcard-h">Workspaces</div>
+        <div class="feats">
+        <button class="feat" type="button" data-go="data"><span class="fh"><span class="b8"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#st8"/></svg><b>1</b></span><b>Data & pick audit</b><i class="st"></i></span><span class="fd">Read SAC files in either byte order with header picks; import station coordinates and a quake.csv catalogue; audit every pick before use.</span></button>
+        <button class="feat" type="button" data-go="pick"><span class="fh"><span class="b8"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#st8"/></svg><b>2</b></span><b>Phase picking</b><i class="st"></i></span><span class="fd">All components on one synchronized time axis; click to pick P or S, zero-phase Butterworth display filters, keyboard station stepping.</span></button>
+        <button class="feat" type="button" data-go="wadati"><span class="fh"><span class="b8"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#st8"/></svg><b>4</b></span><b>Wadati regression</b><i class="st"></i></span><span class="fd">Δt or Ts against Tp with optional Huber weights and a leave-one-out outlier screen; gives Vp/Vs and the origin time.</span></button>
+        <button class="feat" type="button" data-go="velocity"><span class="fh"><span class="b8"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#st8"/></svg><b>5</b></span><b>Velocity model & uncertainty</b><i class="st"></i></span><span class="fd">Apparent Vp from the data with clock tests and a P travel-time check; pick uncertainties, Monte Carlo trials and seed.</span></button>
+        <button class="feat" type="button" data-go="circles"><span class="fh"><span class="b8"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#st8"/></svg><b>6</b></span><b>Three circles & spheres</b><i class="st"></i></span><span class="fd">Radical centre of the S−P circles (depth-independent epicentre) and a three-sphere solution with depth as an unknown.</span></button>
+        <button class="feat" type="button" data-go="joint"><span class="fh"><span class="b8"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#st8"/></svg><b>7</b></span><b>Joint least-squares inversion</b><i class="st"></i></span><span class="fd">Weighted Levenberg–Marquardt with depth scan, station-clock terms, Huber weights, priors, error ellipse, velocity sensitivity and optional Bayesian sampling.</span></button>
+        <button class="feat" type="button" data-go="case"><span class="fh"><span class="b8"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#st8"/></svg><b>9</b></span><b>Case study & figures</b><i class="st"></i></span><span class="fd">Runs every solver and variant, builds 16 publication figures (SVG / 300-dpi PNG), solutions tables and a complete ZIP.</span></button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="ws" id="ws-data" data-n="1" data-title="Data & pick audit" data-sub="Load SAC records, station table and event catalogue; audit the header picks" hidden>
+    <div class="ctl" role="region" aria-label="Data & pick audit controls">
+        <label class="drop" id="dropZone">
+          <svg viewBox="0 0 34 34" aria-hidden="true"><path d="M3 22h5l2-4 3 9 3-16 3 14 2-6 2 3h8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M17 3v7m-3-3 3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+          <b id="dropTitle">Drop SAC files here, or browse</b>
+          <small id="dropSub">Any byte order · .sac .SAC .s · read locally, never uploaded</small>
+          <input id="fileInput" type="file" multiple accept=".sac,.SAC,.s,*"/>
+        </label>
+        <div class="row">
+          <span class="btn gray folder-pick">Choose a folder…<input id="dirInput" type="file" webkitdirectory directory multiple aria-label="Choose a folder of SAC files"/></span>
+          <button class="btn go" id="btnLoad">Load</button>
+          <label class="chk"><input type="checkbox" id="useHeaderPicks" checked/> read header picks (A, T0–T9)</label>
+        </div>
+        <div class="status" id="loadStatus">No files loaded. Files are read locally in the browser; nothing is uploaded.</div>
+
+        <div class="sub-h">Station coordinates</div>
+        <div class="row">
+          <label class="btn gray" style="display:inline-flex">Import station table (CSV)<input id="stationMetaInput" type="file" accept=".csv,.txt,.tsv" style="display:none"/></label>
+          <button class="btn gray" id="btnStationTemplate">Template</button>
+          <label class="chk"><input type="checkbox" id="metaOverride"/> table overrides header coordinates</label>
+        </div>
+        <div class="small">Columns: code, lat, lon, elev_m (header optional; a network prefix such as KS. is ignored). Use it when the SAC headers carry no STLA/STLO; coordinates are never assumed.</div>
+        <div class="small" id="metaStatus"></div>
+
+        <div class="sub-h">Event catalogue (quake.csv)</div>
+        <div class="row">
+          <label class="btn gray" style="display:inline-flex">Import event file<input id="eventCSVInput" type="file" accept=".csv,.txt,.tsv" style="display:none"/></label>
+          <select id="evtSel" style="flex:1;min-width:160px" aria-label="Event"><option value="">(no quake.csv loaded)</option></select>
+        </div>
+        <div class="fields">
+          <label class="field field-wide"><span>Source policy</span>
+            <select id="evtPolicy"><option value="auto">header if valid and consistent, else quake.csv</option><option value="csv">quake.csv always authoritative</option><option value="header">header preferred (quake.csv fills gaps)</option></select></label>
+          <label class="field"><span>Epicentre tol. (km)</span><input id="tolEpi" type="number" value="5" step="1" min="0"/></label>
+          <label class="field"><span>Depth tol. (km)</span><input id="tolDep" type="number" value="5" step="1" min="0"/></label>
+          <label class="field"><span>Magnitude tol.</span><input id="tolMag" type="number" value="0.3" step="0.1" min="0"/></label>
+          <label class="field"><span>T0 tol. (s)</span><input id="tolT" type="number" value="5" step="1" min="0"/></label>
+          <label class="field"><span>CSV time zone (h ahead of UTC)</span><input id="tzOff" type="number" value="0" step="1" min="-12" max="14"/></label>
+        </div>
+        <details class="note"><summary>Event file format</summary><div>
+          <p>Time zone: 0 = UTC; 9 = KST.</p>
+          <p>Columns (header row required for named columns; case-insensitive): time or origin_time (UTC, ISO), or year/month/day/hour/minute/second; lat, lon, depth (km; depth_m for metres), mag. Hypocentre, depth, magnitude and origin time are checked against the SAC headers; the value actually used and its source are shown and logged. SAC files are never changed.</p>
+        </div></details>
+        <div class="readouts"><div class="out">Used <span class="mono" id="eventSrcBox">-</span></div></div>
+        <div class="small" id="eventLogBox" style="max-height:150px;overflow:auto">-</div>
+        <div class="row">
+          <button class="btn gray" id="btnEventLogCSV">Event log (CSV)</button><button class="btn gray" id="btnEventLogJSON">Event log (JSON)</button>
+        </div>
+        <div class="row">
+          <button class="btn gray" id="btnSACCopies">SAC copies with event header</button>
+          <select id="sacCopyMode" aria-label="SAC copy mode"><option value="csv">write only values taken from quake.csv</option><option value="all">write all resolved values</option></select>
+        </div>
+      
+        <div class="sub-h">Reference hypocentre (SAC header / quake.csv)</div>
+        <div class="readouts">
+          <div class="out">Header EVLA/EVLO/EVDP, O, MAG <span class="mono" id="refOut">-</span></div>
+          <div class="out">Offsets <span class="mono" id="refOffOut">-</span></div>
+        </div>
+      
+    </div>
+    <div class="view view-data"><div class="slot" data-slot="audit"></div></div>
+  </section>
+  <section class="ws" id="ws-pick" data-n="2" data-title="Phase picking" data-sub="Pick P and S on synchronized components; review the pick table" hidden>
+    <div class="ctl" role="region" aria-label="Phase picking controls">
+        <div class="list" id="stationList"></div>
+        <div class="row">
+          <div class="phase-seg" role="group" aria-label="Pick phase">
+            <button class="btn red on" id="btnPickP" aria-pressed="true"><span class="sw"></span>Pick P</button>
+            <button class="btn green" id="btnPickS" aria-pressed="false"><span class="sw"></span>Pick S</button>
+          </div>
+          <span class="lbl">Mode <b class="mono" id="pickMode">P</b></span>
+        </div>
+        <div class="row">
+          <label class="chk"><input type="checkbox" id="showAllComp" checked/> all components</label>
+          <span class="lbl">single</span><select id="compSel" aria-label="Single component"></select>
+        </div>
+        <div class="sub-h">Display filter</div>
+        <div class="row">
+          <select id="filterSel" aria-label="Filter type"><option value="none">none</option><option value="hp">high-pass</option><option value="lp">low-pass</option><option value="bp">band-pass</option></select>
+          <input id="fminIn" type="number" value="1" step="0.5" min="0" title="high-pass corner (Hz)" aria-label="High-pass corner (Hz)"/>
+          <span class="lbl">–</span>
+          <input id="fmaxIn" type="number" value="15" step="0.5" min="0" title="low-pass corner (Hz)" aria-label="Low-pass corner (Hz)"/>
+          <span class="lbl">Hz</span>
+          <select id="polesSel" title="poles per pass" aria-label="Poles per pass"><option value="2">2 poles</option><option value="4" selected>4 poles</option></select>
+        </div>
+        <div class="row">
+          <button class="btn gray" id="btnClearStation">Clear current picks</button>
+          <button class="btn gray" id="btnClearAll">Clear all picks</button>
+        </div>
+        <details class="note"><summary>How picking works</summary><div>
+          <p>All components of the selected station are shown with a common, synchronized time axis; a click on any trace sets the station's P or S pick (P is usually clearest on Z, S on N/E). Wheel zoom, drag pan, double-click reset.</p>
+          <p>Zero-phase Butterworth filters (applied forward and backward) affect display and picking only.</p>
+          <p>Keyboard: <b>P</b> / <b>S</b> phase, <b>[</b> / <b>]</b> previous / next station, <b>0</b> reset the view.</p>
+        </div></details>
+      
+        <div class="sub-h">Pick table</div>
+        <div class="tblwrap">
+          <table>
+            <thead><tr><th>Use</th><th>Station</th><th>P (UTC)</th><th>S (UTC)</th><th>S−P (s)</th><th>Src</th></tr></thead>
+            <tbody id="picksTable"></tbody>
+          </table>
+        </div>
+        <div class="small">“Use” includes a station in the Wadati fit, the joint inversion and the Monte Carlo trials.</div>
+        <div class="row">
+          <button class="btn gray" id="btnExport">Export session (JSON)</button>
+          <button class="btn gray" id="btnExportCSV">Export picks (CSV)</button>
+          <label class="btn gray" style="display:inline-flex">Import picks (JSON)<input id="importInput" type="file" accept=".json" style="display:none"/></label>
+        </div>
+      
+    </div>
+    <div class="view view-pick"><div class="slot" data-slot="wave"></div></div>
+  </section>
+  <section class="ws" id="ws-wadati" data-n="4" data-title="Wadati regression" data-sub="Vp/Vs and origin time from S−P against P arrival" hidden>
+    <div class="ctl" role="region" aria-label="Wadati regression controls">
+        <div class="row">
+          <select id="wadMethod" aria-label="Wadati method">
+            <option value="dt">Δt = Ts−Tp vs Tp</option>
+            <option value="ts">Ts vs Tp</option>
+          </select>
+          <label class="chk"><input type="checkbox" id="wadRobust"/> Huber-robust</label>
+          <button class="btn amber" id="btnWadati">Compute Wadati</button>
+        </div>
+        <div class="readouts">
+          <div class="out">Vp/Vs <span class="mono" id="vpvsOut">-</span></div>
+          <div class="out">To (UTC) <span class="mono" id="originTime">-</span></div>
+          <div class="out">Fit <span class="mono" id="wadFitOut">-</span></div>
+        </div>
+        <div class="out warn" id="wadFlagOut"></div>
+        <details class="note"><summary>Outlier screen</summary><div>
+          <p>Stations are flagged when their leave-one-out Δt residual exceeds 3 robust standard deviations (this catches high-leverage stations that pull the line towards themselves). Untick “Use” to exclude them.</p>
+        </div></details>
+      
+    </div>
+    <div class="view view-wadati"><div class="slot" data-slot="wadati"></div></div>
+  </section>
+  <section class="ws" id="ws-velocity" data-n="5" data-title="Velocity model & uncertainty" data-sub="Apparent Vp from the data, pick errors and Monte Carlo settings" hidden>
+    <div class="ctl" role="region" aria-label="Velocity model & uncertainty controls">
+        <div class="fields">
+          <label class="field field-wide"><span>Vp source</span><select id="vpEstMode"><option value="auto">estimated from the data (apparent Vp)</option><option value="manual">user value</option></select></label>
+          <label class="field"><span>Regional Vp (priors)</span><input id="vpRegIn" type="number" value="6.0" step="0.05" min="1" max="10"/></label>
+          <div class="field" style="align-self:end"><button class="btn amber" id="btnEstVp">Estimate Vp</button></div>
+        </div>
+        <div class="readouts"><div class="out">Apparent Vp <span class="mono" id="vpEstOut">-</span></div></div>
+        <details class="note"><summary>How Vp is estimated</summary><div>
+          <p>Estimated automatically from the stations selected in section 7: joint inversion with Vp free and no velocity prior, Vp/Vs from the Wadati fit (refitted without stations with a clock term), station clock test and depth scan; σVp from 200 Monte Carlo trials with the Wadati line refitted. Checked against the slope of the P travel-time curve (clock-corrected T<sub>P</sub> against hypocentral distance).</p>
+          <p>If the estimate is unreliable (unresolved depth, |r(h,Vp)| &gt; 0.9, implausible value), the regional Vp is used. The estimate replaces Vp and σVp below and is used by the three-circle, sphere and Vp-fixed solutions; the regional Vp is the centre of the weak and Bayesian priors.</p>
+        </div></details>
+        <div class="sub-h">Model</div>
+        <div class="fields">
+          <label class="field"><span>Vp (km/s)</span><input id="vpIn" type="number" value="6.0" step="0.05" min="1" max="10"/></label>
+          <label class="field"><span>Vp/Vs</span><input id="vpvsIn" type="number" value="1.73" step="0.01" min="1.2" max="2.5"/></label>
+        </div>
+        <div class="sub-h">Uncertainty</div>
+        <div class="fields">
+          <label class="field"><span>σP (s)</span><input id="sigPIn" type="number" value="0.05" step="0.01" min="0" max="2"/></label>
+          <label class="field"><span>σS (s)</span><input id="sigSIn" type="number" value="0.10" step="0.01" min="0" max="2"/></label>
+          <label class="field"><span>σVp (km/s)</span><input id="sigVpIn" type="number" value="0.20" step="0.05" min="0" max="2"/></label>
+          <label class="field"><span>MC trials</span><input id="mcIn" type="number" value="400" step="100" min="0" max="5000"/></label>
+          <label class="field"><span>Seed</span><input id="seedIn" type="number" value="1" step="1" min="1"/></label>
+        </div>
+        <label class="chk"><input type="checkbox" id="useElev" checked/> station elevations (joint LS)</label>
+        <details class="note"><summary>About σ</summary><div>
+          <p>σP and σS are the 1-σ pick uncertainties; they weight the joint inversion and drive the Monte Carlo trials. σVp is applied when Vp is an input (three-circle method with a prescribed Vp); with the automatic estimate it is the Monte Carlo uncertainty of the estimate.</p>
+        </div></details>
+      
+    </div>
+    <div class="view view-velocity"><div class="slot" data-slot="wadati"></div></div>
+  </section>
+  <section class="ws" id="ws-circles" data-n="6" data-title="Three circles & spheres" data-sub="Radical centre of the S−P circles and the three-sphere solution" hidden>
+    <div class="ctl" role="region" aria-label="Three circles & spheres controls">
+        <div class="lbl">Stations (≥ 3; three for the classical construction)</div>
+        <div class="checks" id="triChecks"></div>
+        <div class="row">
+          <span class="lbl">Vp source</span>
+          <select id="vpSource"><option value="input">Vp input (section 5)</option><option value="joint">joint-LS estimate (section 7)</option></select>
+        </div>
+        <div class="row">
+          <button class="btn amber" id="btnSolve">Solve</button>
+          <button class="btn gray" id="btnFixedPoint" title="Diagnostic only">Fixed-point check</button>
+        </div>
+        <div class="readouts">
+          <div class="out">Epicentre <span class="mono" id="epiOut">-</span></div>
+          <div class="out">Depth, circles <span class="mono" id="depthOut">-</span></div>
+          <div class="out">Spheres (x, y, h) <span class="mono" id="sphereOut">-</span></div>
+          <div class="out">Geometry <span class="mono" id="geomOut">-</span></div>
+          <div class="out">Apparent-Vp fixed point <span class="mono" id="fpOut">-</span></div>
+        </div>
+        <div class="tblwrap">
+          <table>
+            <thead><tr><th>Station</th><th>S−P (s)</th><th>D<sub>hyp</sub> (km)</th><th>D<sub>epi</sub> (km)</th><th>h<sub>i</sub> (km)</th></tr></thead>
+            <tbody id="depthTable"></tbody>
+          </table>
+        </div>
+        <details class="note"><summary>The construction</summary><div>
+          <p>Circles of radius D<sub>hyp</sub> = Δt·Vp/(Vp/Vs − 1); the epicentre is the radical centre (least-squares intersection of all pairwise radical axes), which is independent of the assumed depth. Vp must be supplied (input value or joint-LS estimate): S−P times from three stations cannot resolve it.</p>
+          <p>For three stations the three chord lines always meet at one point, so the inconsistency is zero and all h<sub>i</sub> are equal; with more stations the RMS distance to the radical axes measures the misfit. Dashed axes belong to circle pairs that do not intersect. The sphere solution fits |p − c<sub>i</sub>| = D<sub>hyp,i</sub> with the depth as an explicit unknown (and station elevations if ticked).</p>
+        </div></details>
+      
+    </div>
+    <div class="view view-circles"><div class="slot" data-slot="map"></div></div>
+  </section>
+  <section class="ws" id="ws-joint" data-n="7" data-title="Joint least-squares inversion" data-sub="Levenberg–Marquardt for x, y, h, To [, Vp, Vp/Vs] with depth scan, clocks and optional Bayesian sampling" hidden>
+    <div class="ctl" role="region" aria-label="Joint least-squares inversion controls">
+        <div class="row">
+          <span class="lbl">Trusted stations</span>
+          <button class="btn gray" id="btnJointAll">all</button>
+          <button class="btn gray" id="btnJointNone">none</button>
+          <span class="small" id="jointSelOut">-</span>
+        </div>
+        <div class="checks" id="jointChecks"></div>
+        <details class="note"><summary>Station selection</summary><div>
+          <p>Only the ticked stations enter the joint inversion, its Monte Carlo, the Bayesian sampling, the velocity sensitivity and the joint inversions of the case study (section 9). Stations not ticked “Use” in section 3, or without picks, are greyed out. P/S shows which picks a station has.</p>
+        </div></details>
+        <div class="fields">
+          <label class="field"><span>Vp</span><select id="vpMode"><option value="free">estimated</option><option value="fixed">fixed (section 5)</option></select></label>
+          <label class="field"><span>Vp/Vs</span><select id="kappaMode"><option value="fixed">fixed (Wadati / section 5)</option><option value="free">estimated</option></select></label>
+          <label class="field field-wide"><span>Station clocks</span><select id="clockMode"><option value="auto">detect and correct timing errors</option><option value="off">no correction</option></select></label>
+        </div>
+        <div class="row">
+          <label class="chk"><input type="checkbox" id="usePrior" checked/> weak priors on Vp and Vp/Vs</label>
+          <label class="chk"><input type="checkbox" id="useHuber"/> Huber weights</label>
+          <label class="chk"><input type="checkbox" id="jointMC" checked/> Monte Carlo</label>
+        </div>
+        <div class="bayes-opt">
+          <label class="chk"><input type="checkbox" id="useBayes"/><span><b>Bayesian sampling</b> of the posterior, started from the least-squares solution</span></label>
+          <div class="row bayes-iter"><span class="lbl">iterations per chain</span><input id="bayesIter" type="number" value="20000" step="5000" min="5000" max="200000" style="width:7.5em"/><span class="small">two chains, ¼ burn-in</span></div>
+        </div>
+        <div class="row"><button class="btn green" id="btnSolveJoint">Solve joint inversion</button></div>
+        <details class="note"><summary>Method details</summary><div>
+          <p>Uses the stations selected above, including stations with only a P or only an S pick (≥ 4 stations with Vp estimated). The depth is found by scanning the misfit from the surface to 40 km and then refining freely; the scan is plotted next to the map.</p>
+          <p>Station clocks: each station with P and S is tested for a common offset of both arrivals (a clock or timing error, F test at the 1% family-wise level); a significant offset is estimated as a station term, so that the station contributes only its S−P time, and Vp/Vs is refitted by the Wadati regression without it.</p>
+          <p>Weak priors: Vp ~ N(input Vp, 0.5²) and Vp/Vs ~ N(Wadati, 0.1²) when estimated (the priors of the Bayesian option), which stabilize the depth–Vp trade-off of sparse networks. Depth resolution compares the nearest station distance with the depth, reports the depth-scan interval and checks the depth against an S−P-only (clock-free) sphere fit.</p>
+        </div></details>
+        <div class="readouts">
+          <div class="out">Stations <span class="mono" id="njOut">-</span></div>
+          <div class="out">Epicentre <span class="mono" id="epiJointOut">-</span></div>
+          <div class="out">Depth <span class="mono" id="depthJointOut">-</span></div>
+          <div class="out">Origin time <span class="mono" id="toJointOut">-</span></div>
+          <div class="out">Vp, Vp/Vs <span class="mono" id="vpJointOut">-</span></div>
+          <div class="out">Fit <span class="mono" id="rmsJointOut">-</span></div>
+          <div class="out">Error ellipse (1σ) <span class="mono" id="ellJointOut">-</span></div>
+          <div class="out">Clock terms <span class="mono" id="clockJointOut">-</span></div>
+          <div class="out">Depth resolution <span class="mono" id="resolJointOut">-</span></div>
+          <div class="out out-post">Posterior (Bayesian) <span class="mono" id="bayesOut">not run (tick “Bayesian sampling” to sample the posterior with the joint inversion)</span></div>
+        </div>
+        <div class="out warn" id="jointWarn"></div>
+        <div class="tblwrap">
+          <table>
+            <thead><tr><th>Station</th><th>P res (s)</th><th>S res (s)</th><th>D<sub>epi</sub> (km)</th><th>Flags</th></tr></thead>
+            <tbody id="residTableJoint"></tbody>
+          </table>
+        </div>
+        <details class="note"><summary>About the uncertainties</summary><div>
+          <p>Asymptotic σ = √diag(σ̂²(JᵀWJ)⁻¹), σ̂² = χ²/(n − p) for n arrivals and p unknowns. With Vp/Vs fixed this ignores the uncertainty of Vp/Vs; the Monte Carlo interval (Wadati refitted in each trial) is the more reliable estimate.</p>
+          <p><b>Bayesian sampling (optional):</b> adaptive Metropolis, two chains started at the least-squares solution; Vp and Vp/Vs are sampled with weakly informative priors (Vp ~ N(regional Vp, 0.5²), Vp/Vs ~ N(Wadati, 0.1²), depth uniform from the surface to 50 km). Converged when R̂ &lt; 1.05. The posterior depth histogram is overlaid on the depth scan, and the case study adds the posterior median, the posterior figure and the posterior panel of the GMT maps. Unticked, the joint inversion and the case study run without it.</p>
+        </div></details>
+        <div class="sub-h">Velocity sensitivity</div>
+        <div class="row"><button class="btn gray" id="btnSens">Run sensitivity</button>
+          <span class="small">joint solution with Vp ± 0.2, ± 0.4 km/s and Vp/Vs ± 0.05 held fixed</span></div>
+        <div class="tblwrap">
+          <table>
+            <thead><tr><th>Vp</th><th>Vp/Vs</th><th>Epicentre</th><th>Shift (km)</th><th>h (km)</th><th>RMS (ms)</th></tr></thead>
+            <tbody id="sensTable"></tbody>
+          </table>
+        </div>
+      
+    </div>
+    <div class="view view-joint"><div class="slot" data-slot="map"></div><div class="slot" data-slot="depth"></div><div class="slot" data-slot="wadati"></div></div>
+  </section>
+  <section class="ws" id="ws-case" data-n="9" data-title="Case study & figures" data-sub="Every solver at once, publication figures, solutions table and ZIP" hidden>
+    <div class="ctl" role="region" aria-label="Case study & figures controls">
+        <label class="chk"><input type="checkbox" id="exclFlagged" checked/> main solution without the stations flagged by the Wadati screen</label>
+        <div class="row">
+          <button class="btn green" id="btnCase">Run complete analysis</button>
+          <button class="btn gray" id="btnFigZip" disabled>Download all (ZIP)</button>
+        </div>
+        <div class="status" id="caseStatus">Runs the Wadati fit, the joint inversion with the settings of section 7 and three variants
+          (Vp and Vp/Vs estimated; Vp fixed; Huber weights; depth fixed at the SAC-header depth), the comparison with and without the
+          stations flagged by the leave-one-out screen (with a clock-error test: a station whose P and S residuals share one offset
+          while its S−P time fits is reported as a probable timing error), the three-circle and sphere
+          solutions (stations ticked in section 6, or the best-distributed three), Monte Carlo, Bayesian sampling and the velocity
+          sensitivity, and draws the figures of the case study. Each figure can be saved as SVG or 300-dpi PNG; the ZIP also contains
+          the solutions table (CSV and Markdown), the figure captions and the session.</div>
+        <div class="sub-h">GMT publication maps</div>
+        <div class="small">Maps for publication are drawn with <b>GMT 6</b> (Generic Mapping Tools) on your computer: the package holds the data, the computed map regions and a script that makes G1 location overview with depth sections, G2 three-circle construction and G3 epicentre uncertainty (PDF and 600-dpi PNG).</div>
+        <div class="fields">
+          <label class="field field-wide"><span>Default background</span>
+            <select id="gmtBg"><option value="satellite">Satellite imagery + SRTM shading (@earth_day)</option><option value="relief">SRTM shaded relief, 1″ (~30 m)</option><option value="image">Own satellite GeoTIFF (e.g. Sentinel-2, 10 m)</option><option value="plain">Coastlines only (offline)</option></select></label>
+        </div>
+        <div class="row"><button class="btn go" id="btnGMT" disabled>Download GMT map package</button></div>
+        <details class="note"><summary>Running the maps</summary><div>
+          <p>Unzip and run <span class="mono">bash make_maps.sh</span> (GMT ≥ 6.1). Other backgrounds without editing: <span class="mono">BG=relief</span>, <span class="mono">BG=image IMG=scene.tif</span>, <span class="mono">BG=plain</span>; resolution with <span class="mono">DPI=1200</span>.</p>
+          <p>GMT's global satellite imagery is about 1 km per pixel; for metre-scale imagery export a WGS84 GeoTIFF (e.g. Sentinel-2 true colour from the Copernicus Browser) and use the GeoTIFF option. The package is also inside “Download all”.</p>
+        </div></details>
+      
+    </div>
+    <div class="view view-case"><div class="slot" data-slot="figs"></div></div>
+  </section>
+</main>
+
+<footer class="statusbar">
+  <span class="lamp" title="Every file is read locally in your browser. Nothing is uploaded."><i></i>Local</span>
+  <span class="sb-item" id="sbSession">No records loaded</span>
+  <span class="sb-item sb-perf mono" id="perfOut">-</span>
+  <span class="sb-item sb-right mono" id="pickHint"></span>
+  <span class="sb-item sb-author">© Ali Attia</span>
+</footer>
+</div>
+
+<div class="pool" id="viewPool" aria-hidden="true">
+  <div class="vw" id="vWave">
+    <div class="canvasBox" id="waveBox">
+      <div class="titlebar"><div>Seismogram</div><div class="mono" id="waveMeta">-</div></div>
+      <canvas id="waveCanvas" aria-label="Seismogram: click to pick, wheel to zoom, drag to pan, double-click to reset"></canvas>
+    </div>
+    <div class="wave-bar"><span class="hint"><kbd>P</kbd>/<kbd>S</kbd> phase · <kbd>[</kbd>/<kbd>]</kbd> station · click pick · wheel zoom · drag pan · <kbd>0</kbd> reset</span></div>
+  </div>
+  <div class="vw" id="vWadati">
+    <div class="canvasBox" id="wadatiBox">
+      <div class="titlebar"><div>Wadati diagram</div><div class="mono" id="wadatiMeta">-</div></div>
+      <canvas id="wadatiCanvas"></canvas>
+    </div>
+  </div>
+  <div class="vw" id="vDepth">
+    <div class="canvasBox" id="depthBox">
+      <div class="titlebar"><div>Depth scan</div><div class="mono" id="depthMeta">-</div></div>
+      <canvas id="depthCanvas"></canvas>
+    </div>
+  </div>
+  <div class="vw" id="vMap">
+        <div class="mapcol">
+          <div id="map"></div>
+          <div id="coordBox">lat=— lon=—</div>
+          <div class="row" style="margin-top:8px">
+            <span class="lbl">Basemap</span>
+            <select id="basemapSel" aria-label="Basemap">
+              <option value="gsat">Google Satellite</option>
+              <option value="ghyb">Google Satellite + labels</option>
+              <option value="imagery">Esri World Imagery</option>
+              <option value="topo">Topography (OpenTopoMap)</option>
+              <option value="offline">Offline coastlines (Natural Earth)</option>
+            </select>
+          </div>
+          <details class="note" id="gKeyBox"><summary>Google Satellite key</summary><div>
+            <div class="row">
+              <input id="gKeyIn" type="password" autocomplete="off" spellcheck="false" placeholder="Google Maps Platform API key" aria-label="Google Maps Platform API key"/>
+              <button class="btn gray" id="btnGKeySave" type="button">Save &amp; use</button>
+              <button class="btn gray" id="btnGKeyForget" type="button">Forget</button>
+            </div>
+            <p id="gKeyStatus" class="small"></p>
+            <p>Google imagery is served by the official <b>Map Tiles API</b>: enable it in the Google Cloud console, create an API key restricted to that API (and to your web address), and paste it here. The key stays in this browser and is sent only to tile.googleapis.com. Online imagery needs a network connection; without one the offline map is used automatically.</p>
+          </div></details>
+          <div class="legend">
+            <span class="k"><i class="tri" style="--c:var(--ink)"></i>station</span>
+            <span class="k"><i style="--c:var(--chord)"></i>three-circle epicentre</span>
+            <span class="k"><i class="ell"></i>joint LS, 1σ ellipse</span>
+            <span class="k"><i class="x"></i>reference (SAC header)</span>
+          </div>
+        </div>
+  </div>
+  <div class="vw vw-scroll" id="vAudit">
+      <div class="sheet" id="pickCard">
+        <h3>Pick diagnostics</h3>
+        <div class="small">Header picks as read; nothing is modified.</div>
+        <div id="pickMsgs" class="small">Load SAC files to audit their picks.</div>
+        <div class="tblwrap"><table><thead><tr><th>Station</th><th>Comps</th><th>P (UTC)</th><th>S (UTC)</th><th>S−P (s)</th><th>Src</th><th>Onset P/S</th><th>Status</th><th>Notes</th></tr></thead><tbody id="pickAuditTable"></tbody></table></div>
+        <details class="note"><summary>Reading the table</summary><div>
+          <p>Src: header field of the P and S pick (A, T0–T9) read from the files. Onset: RMS after / before the pick (P on the vertical, S on the horizontals): a diagnostic, never a reason to change a pick.</p>
+          <p>FAIL = inconsistent or missing pick; WARN = coordinates missing, weak or untestable onset.</p>
+        </div></details>
+        <div class="row"><button class="btn gray" id="btnPickCSV">Pick report (CSV)</button><button class="btn gray" id="btnPickJSON">Pick report (JSON)</button>
+          <button class="btn gray" id="btnPickSVG">Figure (SVG)</button><button class="btn gray" id="btnPickPNG">Figure (PNG)</button><button class="btn amber" id="btnPickRestore">Restore header picks</button></div>
+        <div id="pickFig"></div>
+      </div>
+  </div>
+  <div class="vw vw-scroll" id="vFigs">
+      <div class="sheet" id="figCard">
+        <h3>Case-study figures &amp; solutions</h3>
+        <div id="figGallery" class="small"><div class="empty"><svg viewBox="0 0 44 44" aria-hidden="true"><rect x="5" y="8" width="34" height="28" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5 30l9-8 7 6 8-10 10 9" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>Run the case study to compute all solutions and draw the figures.</div></div>
+      </div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+
+<dialog class="keys" id="keysDlg" aria-labelledby="keysTitle">
+  <h3 id="keysTitle">Keys &amp; methods</h3>
+  <dl>
+    <dt><kbd>P</kbd> <kbd>S</kbd></dt><dd>Pick mode P or S</dd>
+    <dt><kbd>[</kbd> <kbd>]</kbd></dt><dd>Previous / next station</dd>
+    <dt><kbd>0</kbd></dt><dd>Reset the seismogram view</dd>
+    <dt><kbd>1</kbd>–<kbd>9</kbd> · <kbd>H</kbd></dt><dd>Open a workspace by its number (1 data, 2–3 picking, 4 Wadati, 5 velocity, 6 circles, 7–8 joint LS, 9 case study) · H home</dd>
+    <dt>click · wheel · drag</dt><dd>Pick · zoom · pan the seismogram; double-click resets</dd>
+  </dl>
+  <div class="methods">
+    <p><b>Three-circle method (N ≥ 3 stations):</b> circles of radius D<sub>hyp</sub> = Δt·Vp/(Vp/Vs − 1); the epicentre is the radical centre (least-squares intersection of all pairwise radical axes), which is independent of the assumed depth. Vp must be supplied (input value or joint-LS estimate): S−P times from three stations cannot resolve it.</p>
+    <p><b>Three spheres:</b> the same S−P distances as spheres, solved for (x, y, h) with depth as an explicit unknown.</p>
+    <p><b>Joint LS (N ≥ 4):</b> weighted Levenberg–Marquardt for (x, y, h, To[, Vp][, Vp/Vs]) with a depth scan, optional Huber weights and station elevations. <b>Uncertainty:</b> Monte Carlo (Wadati refitted in every trial), asymptotic covariance, and in-browser Bayesian sampling. Homogeneous half-space.</p>
+  </div>
+  <p class="small" style="margin:10px 0 0">EQLocate — author: <b>Ali Attia</b></p>
+  <form method="dialog" style="text-align:right"><button class="btn">Close</button></form>
+</dialog>
+
+<script src="assets/vendor/leaflet/leaflet.js"></script>
+<script src="assets/data/world50m.js"></script>
+<script src="assets/js/core.js"></script>
+<script src="assets/js/figkit.js"></script>
+<script src="assets/js/gmt.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/shell.js"></script>
+</body>
+</html>
